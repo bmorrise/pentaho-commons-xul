@@ -24,9 +24,14 @@ import org.eclipse.jface.action.MenuManager;
 import org.pentaho.ui.xul.XulComponent;
 import org.pentaho.ui.xul.XulDomContainer;
 import org.pentaho.ui.xul.components.XulMenuitem;
+import org.pentaho.ui.xul.components.XulMenuseparator;
 import org.pentaho.ui.xul.containers.XulMenupopup;
 import org.pentaho.ui.xul.dom.Element;
+import org.pentaho.ui.xul.dom.dom4j.ElementDom4J;
 import org.pentaho.ui.xul.swt.AbstractSwtXulContainer;
+
+import java.lang.reflect.Method;
+import java.util.Collection;
 
 public class JfaceMenupopup extends AbstractSwtXulContainer implements XulMenupopup {
 
@@ -65,6 +70,52 @@ public class JfaceMenupopup extends AbstractSwtXulContainer implements XulMenupo
   @Override
   public XulComponent getParent() {
     return parent;
+  }
+
+  public <T> void setElements( Collection<T> elements ) {
+    menu.removeAll();
+    for ( T element : elements ) {
+      String label = (String) getValue( element, "label" );
+      String type = (String) getValue( element, "type" );
+      String command = (String) getValue( element, "command" );
+      Boolean selected = (Boolean) getValue( element, "selected" );
+
+      if ( label == null ) {
+        XulMenuseparator menuseparator = new JfaceMenuseparator( null, this, domContainer, "menuseparator" );
+        addChild( menuseparator );
+      } else {
+        Element domElement = new ElementDom4J( "menuitem" );
+        if ( type != null ) {
+          domElement.setAttribute( "type", type );
+        }
+
+        XulMenuitem menuitem = new JfaceMenuitem( domElement, this, domContainer, "menuitem" );
+
+        if ( command != null ) {
+          menuitem.setCommand( command );
+        }
+        menuitem.setLabel( label );
+        menuitem.setSelected( selected != null ? selected : false );
+
+        addChild( menuitem );
+      }
+    }
+  }
+
+  private Object getValue( Object o, String name ) {
+    String[] prefixes = new String[] { "get", "is" };
+    for ( String prefix : prefixes ) {
+      String methodName = prefix + name.substring( 0, 1 ).toUpperCase() + name.substring( 1 );
+      try {
+        Method method = o.getClass().getMethod( methodName );
+        if ( method != null ) {
+          return method.invoke( o );
+        }
+      } catch ( Exception e ) {
+        logger.info( "Error invoking method " + methodName, e );
+      }
+    }
+    return null;
   }
 
   public XulMenuitem createNewMenuitem() {
